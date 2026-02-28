@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Campus Security Dashboard</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#111;
+color:white;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th,td{
+padding:10px;
+border-bottom:1px solid #444;
+}
+
+.high{
+color:red;
+font-weight:bold;
+}
+
+.medium{
+color:orange;
+}
+
+.low{
+color:lightgreen;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Smart Campus Security Dashboard</h1>
+
+<table>
+
+<tr>
+<th>Time</th>
+<th>Zone</th>
+<th>Threat Score</th>
+<th>Level</th>
+<th>Image</th>
+</tr>
+
+{% for e in events %}
+
+<tr>
+
+<td>{{e[0]}}</td>
+<td>{{e[1]}}</td>
+<td>{{e[2]}}</td>
+
+<td class="{{e[3]|lower}}">
+{{e[3]}}
+</td>
+
+<td>{{e[4]}}</td>
+
+</tr>
+
+{% endfor %}
+
+</table>
+
+</body>
+</html>
