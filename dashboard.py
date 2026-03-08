@@ -3,6 +3,23 @@ import sqlite3
 
 app = Flask(__name__)
 
+def init_db():
+    conn = sqlite3.connect("security_events.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type TEXT,
+        timestamp TEXT
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+init_db()
+
 def get_events():
     conn = sqlite3.connect("security_events.db")
     cur = conn.cursor()
