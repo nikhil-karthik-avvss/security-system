@@ -3,7 +3,11 @@
 
 <head>
 
-<title>Campus Security Control Room</title>
+<title>Smart Campus Surveillance Dashboard</title>
+
+<meta http-equiv="refresh" content="5">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 
@@ -11,38 +15,114 @@ body{
 background:#0b0b0b;
 color:white;
 font-family:Arial;
+margin:0;
+padding:20px;
 }
 
 h1{
 color:#00ffcc;
+margin-bottom:20px;
 }
 
-.container{
-display:flex;
+/* MAIN GRID */
+
+.dashboard{
+display:grid;
+grid-template-columns: 60% 40%;
+grid-gap:20px;
+align-items:start;
 }
 
-.map{
-width:60%;
+/* MAP */
+
+.map-container{
+position:relative;
 }
+
+#campus-map{
+width:100%;
+max-width:100%;
+border:2px solid #444;
+}
+
+/* MARKERS */
+
+.marker{
+position:absolute;
+width:14px;
+height:14px;
+border-radius:50%;
+transform:translate(-7px,-7px);
+}
+
+.marker.high{
+background:red;
+box-shadow:0 0 15px red;
+animation:blink 1s infinite;
+}
+
+.marker.medium{
+background:orange;
+}
+
+.marker.low{
+background:lime;
+}
+
+@keyframes blink{
+0%{opacity:1;}
+50%{opacity:0.2;}
+100%{opacity:1;}
+}
+
+/* EVENT TABLE */
 
 .events{
-width:40%;
-padding-left:20px;
+max-height:500px;
+overflow-y:auto;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
+font-size:13px;
 }
 
 th,td{
 padding:8px;
-border-bottom:1px solid #444;
+border-bottom:1px solid #333;
+text-align:left;
 }
 
 .high{color:red;}
 .medium{color:orange;}
 .low{color:lightgreen;}
+
+/* ANALYTICS */
+
+.analytics{
+margin-top:30px;
+}
+
+canvas{
+background:#111;
+padding:15px;
+border-radius:10px;
+}
+
+/* ALERT */
+
+#alertBox{
+position:fixed;
+top:20px;
+right:20px;
+background:red;
+color:white;
+padding:15px;
+font-weight:bold;
+display:none;
+z-index:1000;
+}
 
 </style>
 
@@ -52,17 +132,43 @@ border-bottom:1px solid #444;
 
 <h1>Smart Campus Surveillance Dashboard</h1>
 
-<div class="container">
+<div id="alertBox">HIGH THREAT DETECTED</div>
 
-<div class="map">
+<div class="dashboard">
 
-<img src="/static/campus_map.jpg" width="100%">
+<!-- MAP -->
+
+<div class="map-container">
+
+<img src="/static/campus_map.jpg" id="campus-map">
+
+{% for m in markers %}
+
+<div class="marker {{m.level|lower}}"
+style="left:{{m.x}}px; top:{{m.y}}px;"
+title="{{m.zone}}">
+</div>
+
+{% endfor %}
+
+<!-- ANALYTICS UNDER MAP -->
+
+<div class="analytics">
+
+<h3>Intrusion Analytics</h3>
+
+<canvas id="zoneChart"></canvas>
 
 </div>
 
+</div>
+
+
+<!-- EVENTS TABLE -->
+
 <div class="events">
 
-<h2>Recent Intrusion Events</h2>
+<h3>Recent Events</h3>
 
 <table>
 
@@ -103,6 +209,50 @@ border-bottom:1px solid #444;
 </div>
 
 </div>
+
+
+<script>
+
+/* CHART */
+
+const zones = {{ zones | tojson }};
+const counts = {{ counts | tojson }};
+
+const ctx = document.getElementById('zoneChart').getContext('2d');
+
+new Chart(ctx,{
+type:'bar',
+data:{
+labels:zones,
+datasets:[{
+label:'Intrusions',
+data:counts,
+backgroundColor:'rgba(255,80,80,0.7)'
+}]
+},
+options:{
+plugins:{legend:{display:false}},
+scales:{y:{beginAtZero:true}}
+}
+})
+
+/* ALERT */
+
+const highMarkers=document.querySelectorAll(".marker.high")
+
+if(highMarkers.length>0){
+
+let alertBox=document.getElementById("alertBox")
+
+alertBox.style.display="block"
+
+setTimeout(()=>{
+alertBox.style.display="none"
+},5000)
+
+}
+
+</script>
 
 </body>
 
