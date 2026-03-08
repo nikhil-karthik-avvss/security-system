@@ -38,8 +38,6 @@ width:100%;
 border:2px solid #444;
 }
 
-/* LIVE ALERT MARKERS */
-
 .marker{
 position:absolute;
 width:14px;
@@ -62,23 +60,35 @@ background:orange;
 background:lime;
 }
 
+.heat{
+position:absolute;
+border-radius:50%;
+background:rgba(255,0,0,0.2);
+transform:translate(-50%,-50%);
+}
+
+.anomaly{
+position:absolute;
+width:22px;
+height:22px;
+border-radius:50%;
+background:purple;
+box-shadow:0 0 20px purple;
+transform:translate(-50%,-50%);
+animation:pulse 1s infinite;
+}
+
 @keyframes blink{
 0%{opacity:1;}
 50%{opacity:0.2;}
 100%{opacity:1;}
 }
 
-/* HEATMAP */
-
-.heat{
-position:absolute;
-border-radius:50%;
-background:rgba(255,0,0,0.2);
-transform:translate(-50%,-50%);
-pointer-events:none;
+@keyframes pulse{
+0%{opacity:1;}
+50%{opacity:0.3;}
+100%{opacity:1;}
 }
-
-/* TABLE */
 
 .events{
 max-height:500px;
@@ -94,10 +104,6 @@ th,td{
 padding:8px;
 border-bottom:1px solid #333;
 }
-
-.high{color:red;}
-.medium{color:orange;}
-.low{color:lightgreen;}
 
 .analytics{
 margin-top:20px;
@@ -137,13 +143,16 @@ font-weight:bold;
 {% for h in heatmap %}
 
 <div class="heat"
-style="
-left:{{h.x}}px;
-top:{{h.y}}px;
-width:{{h.count*15}}px;
-height:{{h.count*15}}px;
-">
-</div>
+style="left:{{h.x}}px; top:{{h.y}}px;
+width:{{h.count*15}}px; height:{{h.count*15}}px;"></div>
+
+{% endfor %}
+
+{% for a in anomalies %}
+
+<div class="anomaly"
+style="left:{{a.x}}px; top:{{a.y}}px;"
+title="Anomaly {{a.zone}}"></div>
 
 {% endfor %}
 
@@ -187,11 +196,7 @@ style="left:{{m.x}}px; top:{{m.y}}px;"></div>
 <td>{{e[0]}}</td>
 <td>{{e[1]}}</td>
 <td>{{e[2]}}</td>
-
-<td class="{{e[3]|lower}}">
-{{e[3]}}
-</td>
-
+<td>{{e[3]}}</td>
 <td>{{e[4]}}</td>
 
 </tr>
@@ -212,16 +217,34 @@ style="left:{{m.x}}px; top:{{m.y}}px;"></div>
 
 </ul>
 
+<h3>Anomaly Detection</h3>
+
+<ul>
+
+{% if anomalies|length == 0 %}
+
+<li>No anomalies detected</li>
+
+{% endif %}
+
+{% for a in anomalies %}
+
+<li>{{a.zone}} unusual activity ({{a.count}} events)</li>
+
+{% endfor %}
+
+</ul>
+
 </div>
 
 </div>
 
 <script>
 
-const zones = {{ zones | tojson }};
-const counts = {{ counts | tojson }};
+const zones={{zones|tojson}};
+const counts={{counts|tojson}};
 
-const ctx = document.getElementById('zoneChart').getContext('2d');
+const ctx=document.getElementById('zoneChart').getContext('2d');
 
 new Chart(ctx,{
 type:'bar',
@@ -235,7 +258,7 @@ backgroundColor:'rgba(255,80,80,0.7)'
 }
 })
 
-const replayEvents = {{ replay | tojson }}
+const replayEvents={{replay|tojson}}
 
 function startReplay(){
 

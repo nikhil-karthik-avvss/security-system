@@ -2,6 +2,7 @@ import json
 import sqlite3
 import random
 import threading
+from datetime import datetime, timedelta
 import paho.mqtt.client as mqtt
 from flask import Flask, render_template
 
@@ -84,7 +85,6 @@ ZONE_COORDS = {
 }
 
 def init_db():
-
     cur.execute("""
     CREATE TABLE IF NOT EXISTS events(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,7 +99,6 @@ def init_db():
         image TEXT
     )
     """)
-
     conn.commit()
 
 def on_connect(client, userdata, flags, rc):
@@ -107,7 +106,7 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
 
-    data = json.loads(msg.payload.decode())
+    data=json.loads(msg.payload.decode())
 
     zone=data["zone"]
     motion=data["motion"]
@@ -140,6 +139,48 @@ def start_mqtt():
 
     client.loop_forever()
 
+
+def detect_anomalies():
+
+    cur.execute("""
+    SELECT zone,COUNT(*)
+    FROM events
+    WHERE timestamp >= datetime('now','-10 minutes')
+    GROUP BY zone
+    """)
+
+    recent=dict(cur.fetchall())
+
+    cur.execute("""
+    SELECT zone,COUNT(*)
+    FROM events
+    GROUP BY zone
+    """)
+
+    total=dict(cur.fetchall())
+
+    anomalies=[]
+
+    for zone,rcount in recent.items():
+
+        hcount=total.get(zone,0)
+
+        if rcount>=3 and rcount>(hcount*0.3):
+
+            if zone in ZONE_COORDS:
+
+                x,y=ZONE_COORDS[zone]
+
+                anomalies.append({
+                    "zone":zone,
+                    "x":x,
+                    "y":y,
+                    "count":rcount
+                })
+
+    return anomalies
+
+
 @app.route("/")
 def dashboard():
 
@@ -150,7 +191,7 @@ def dashboard():
     LIMIT 50
     """)
 
-    rows = cur.fetchall()
+    rows=cur.fetchall()
 
     markers=[]
     replay=[]
@@ -217,6 +258,8 @@ def dashboard():
     zones=[s[0] for s in stats]
     counts=[s[1] for s in stats]
 
+    anomalies=detect_anomalies()
+
     return render_template(
         "dashboard.html",
         events=rows,
@@ -224,66 +267,8 @@ def dashboard():
         zones=zones,
         counts=counts,
         replay=replay,
-        heatmap=heatmap
-    )
-
-    cur.execute("""
-    SELECT timestamp,zone,threat,level,image
-    FROM events
-    ORDER BY id DESC
-    LIMIT 50
-    """)
-
-    rows=cur.fetchall()
-
-    markers=[]
-    replay=[]
-
-    for r in rows:
-
-        zone=r[1]
-        level=r[3]
-        image=r[4]
-
-        if zone in ZONE_COORDS:
-
-            x,y=ZONE_COORDS[zone]
-
-            markers.append({
-                "zone":zone,
-                "x":x,
-                "y":y,
-                "level":level
-            })
-
-            replay.append({
-                "zone":zone,
-                "x":x,
-                "y":y,
-                "level":level,
-                "image":image
-            })
-
-    cur.execute("""
-    SELECT zone,COUNT(*)
-    FROM events
-    GROUP BY zone
-    ORDER BY COUNT(*) DESC
-    LIMIT 5
-    """)
-
-    stats=cur.fetchall()
-
-    zones=[s[0] for s in stats]
-    counts=[s[1] for s in stats]
-
-    return render_template(
-        "dashboard.html",
-        events=rows,
-        markers=markers,
-        zones=zones,
-        counts=counts,
-        replay=replay
+        heatmap=heatmap,
+        anomalies=anomalies
     )
 
 if __name__=="__main__":
