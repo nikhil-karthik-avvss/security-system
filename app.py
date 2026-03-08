@@ -271,12 +271,10 @@ def dashboard():
         anomalies=anomalies
     )
 
-if __name__=="__main__":
+init_db()
 
-    init_db()
+mqtt_thread=threading.Thread(target=start_mqtt)
+mqtt_thread.daemon=True
+mqtt_thread.start()
 
-    mqtt_thread=threading.Thread(target=start_mqtt)
-    mqtt_thread.daemon=True
-    mqtt_thread.start()
-
-    app.run(host="0.0.0.0",port=10000)
+app.run(host="0.0.0.0",port=10000)
