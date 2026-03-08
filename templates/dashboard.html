@@ -21,19 +21,13 @@ padding:20px;
 
 h1{
 color:#00ffcc;
-margin-bottom:20px;
 }
-
-/* MAIN GRID */
 
 .dashboard{
 display:grid;
-grid-template-columns: 60% 40%;
+grid-template-columns:60% 40%;
 grid-gap:20px;
-align-items:start;
 }
-
-/* MAP */
 
 .map-container{
 position:relative;
@@ -41,11 +35,10 @@ position:relative;
 
 #campus-map{
 width:100%;
-max-width:100%;
 border:2px solid #444;
 }
 
-/* MARKERS */
+/* LIVE ALERT MARKERS */
 
 .marker{
 position:absolute;
@@ -75,7 +68,17 @@ background:lime;
 100%{opacity:1;}
 }
 
-/* EVENT TABLE */
+/* HEATMAP */
+
+.heat{
+position:absolute;
+border-radius:50%;
+background:rgba(255,0,0,0.2);
+transform:translate(-50%,-50%);
+pointer-events:none;
+}
+
+/* TABLE */
 
 .events{
 max-height:500px;
@@ -85,32 +88,20 @@ overflow-y:auto;
 table{
 width:100%;
 border-collapse:collapse;
-font-size:13px;
 }
 
 th,td{
 padding:8px;
 border-bottom:1px solid #333;
-text-align:left;
 }
 
 .high{color:red;}
 .medium{color:orange;}
 .low{color:lightgreen;}
 
-/* ANALYTICS */
-
 .analytics{
-margin-top:30px;
+margin-top:20px;
 }
-
-canvas{
-background:#111;
-padding:15px;
-border-radius:10px;
-}
-
-/* ALERT */
 
 #alertBox{
 position:fixed;
@@ -119,9 +110,8 @@ right:20px;
 background:red;
 color:white;
 padding:15px;
-font-weight:bold;
 display:none;
-z-index:1000;
+font-weight:bold;
 }
 
 </style>
@@ -134,24 +124,37 @@ z-index:1000;
 
 <div id="alertBox">HIGH THREAT DETECTED</div>
 
+<button onclick="startReplay()">Replay Intrusions</button>
+
 <div class="dashboard">
 
-<!-- MAP -->
+<div>
 
 <div class="map-container">
 
 <img src="/static/campus_map.jpg" id="campus-map">
 
-{% for m in markers %}
+{% for h in heatmap %}
 
-<div class="marker {{m.level|lower}}"
-style="left:{{m.x}}px; top:{{m.y}}px;"
-title="{{m.zone}}">
+<div class="heat"
+style="
+left:{{h.x}}px;
+top:{{h.y}}px;
+width:{{h.count*15}}px;
+height:{{h.count*15}}px;
+">
 </div>
 
 {% endfor %}
 
-<!-- ANALYTICS UNDER MAP -->
+{% for m in markers %}
+
+<div class="marker {{m.level|lower}}"
+style="left:{{m.x}}px; top:{{m.y}}px;"></div>
+
+{% endfor %}
+
+</div>
 
 <div class="analytics">
 
@@ -162,9 +165,6 @@ title="{{m.zone}}">
 </div>
 
 </div>
-
-
-<!-- EVENTS TABLE -->
 
 <div class="events">
 
@@ -192,13 +192,7 @@ title="{{m.zone}}">
 {{e[3]}}
 </td>
 
-<td>
-{% if e[4] %}
-{{e[4]}}
-{% else %}
--
-{% endif %}
-</td>
+<td>{{e[4]}}</td>
 
 </tr>
 
@@ -206,14 +200,23 @@ title="{{m.zone}}">
 
 </table>
 
-</div>
+<h3>Top Intrusion Zones</h3>
+
+<ul>
+
+{% for i in range(zones|length) %}
+
+<li>{{ zones[i] }} — {{ counts[i] }}</li>
+
+{% endfor %}
+
+</ul>
 
 </div>
 
+</div>
 
 <script>
-
-/* CHART */
 
 const zones = {{ zones | tojson }};
 const counts = {{ counts | tojson }};
@@ -229,14 +232,42 @@ label:'Intrusions',
 data:counts,
 backgroundColor:'rgba(255,80,80,0.7)'
 }]
-},
-options:{
-plugins:{legend:{display:false}},
-scales:{y:{beginAtZero:true}}
 }
 })
 
-/* ALERT */
+const replayEvents = {{ replay | tojson }}
+
+function startReplay(){
+
+let i=0
+
+let map=document.querySelector(".map-container")
+
+let replayMarker=document.createElement("div")
+
+replayMarker.className="marker high"
+
+map.appendChild(replayMarker)
+
+let timer=setInterval(()=>{
+
+if(i>=replayEvents.length){
+
+clearInterval(timer)
+return
+
+}
+
+let e=replayEvents[i]
+
+replayMarker.style.left=e.x+"px"
+replayMarker.style.top=e.y+"px"
+
+i++
+
+},1000)
+
+}
 
 const highMarkers=document.querySelectorAll(".marker.high")
 

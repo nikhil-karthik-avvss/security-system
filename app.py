@@ -19,7 +19,6 @@ images = [
 "intruder3.jpg"
 ]
 
-# paste your generated coordinates here
 ZONE_COORDS = {
 "CSE Department": (641,277),
 "CSE Annexure": (635,253),
@@ -104,26 +103,24 @@ def init_db():
     conn.commit()
 
 def on_connect(client, userdata, flags, rc):
-
-    print("MQTT Connected")
     client.subscribe(TOPIC)
 
 def on_message(client, userdata, msg):
 
     data = json.loads(msg.payload.decode())
 
-    zone = data["zone"]
-    motion = data["motion"]
-    light = data["light"]
-    distance = data["distance"]
-    sound = data["sound"]
-    threat = data["threat"]
-    level = data["level"]
+    zone=data["zone"]
+    motion=data["motion"]
+    light=data["light"]
+    distance=data["distance"]
+    sound=data["sound"]
+    threat=data["threat"]
+    level=data["level"]
 
-    image = None
+    image=None
 
-    if level == "HIGH":
-        image = random.choice(images)
+    if level=="HIGH":
+        image=random.choice(images)
 
     cur.execute("""
     INSERT INTO events(zone,motion,light,distance,sound,threat,level,image)
@@ -134,10 +131,10 @@ def on_message(client, userdata, msg):
 
 def start_mqtt():
 
-    client = mqtt.Client()
+    client=mqtt.Client()
 
-    client.on_connect = on_connect
-    client.on_message = on_message
+    client.on_connect=on_connect
+    client.on_message=on_message
 
     client.connect(BROKER,1883,60)
 
@@ -156,6 +153,7 @@ def dashboard():
     rows = cur.fetchall()
 
     markers=[]
+    replay=[]
 
     for r in rows:
 
@@ -173,12 +171,45 @@ def dashboard():
                 "level":level
             })
 
+            replay.append({
+                "zone":zone,
+                "x":x,
+                "y":y,
+                "level":level
+            })
+
+    cur.execute("""
+    SELECT zone,COUNT(*)
+    FROM events
+    GROUP BY zone
+    """)
+
+    heat=cur.fetchall()
+
+    heatmap=[]
+
+    for h in heat:
+
+        zone=h[0]
+        count=h[1]
+
+        if zone in ZONE_COORDS:
+
+            x,y=ZONE_COORDS[zone]
+
+            heatmap.append({
+                "zone":zone,
+                "x":x,
+                "y":y,
+                "count":count
+            })
+
     cur.execute("""
     SELECT zone,COUNT(*)
     FROM events
     GROUP BY zone
     ORDER BY COUNT(*) DESC
-    LIMIT 10
+    LIMIT 5
     """)
 
     stats=cur.fetchall()
@@ -191,10 +222,71 @@ def dashboard():
         events=rows,
         markers=markers,
         zones=zones,
-        counts=counts
+        counts=counts,
+        replay=replay,
+        heatmap=heatmap
     )
 
-if __name__ == "__main__":
+    cur.execute("""
+    SELECT timestamp,zone,threat,level,image
+    FROM events
+    ORDER BY id DESC
+    LIMIT 50
+    """)
+
+    rows=cur.fetchall()
+
+    markers=[]
+    replay=[]
+
+    for r in rows:
+
+        zone=r[1]
+        level=r[3]
+        image=r[4]
+
+        if zone in ZONE_COORDS:
+
+            x,y=ZONE_COORDS[zone]
+
+            markers.append({
+                "zone":zone,
+                "x":x,
+                "y":y,
+                "level":level
+            })
+
+            replay.append({
+                "zone":zone,
+                "x":x,
+                "y":y,
+                "level":level,
+                "image":image
+            })
+
+    cur.execute("""
+    SELECT zone,COUNT(*)
+    FROM events
+    GROUP BY zone
+    ORDER BY COUNT(*) DESC
+    LIMIT 5
+    """)
+
+    stats=cur.fetchall()
+
+    zones=[s[0] for s in stats]
+    counts=[s[1] for s in stats]
+
+    return render_template(
+        "dashboard.html",
+        events=rows,
+        markers=markers,
+        zones=zones,
+        counts=counts,
+        replay=replay
+    )
+
+if __name__=="__main__":
 
     init_db()
 
